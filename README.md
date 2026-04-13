@@ -20,12 +20,12 @@ Install the extension, then run once in a terminal:
 
 **Claude Code:**
 ```bash
-claude mcp add -s user julia-vscode-unofficial-mcp -- node ~/.julia-vscode/mcp-bridge.js
+claude mcp add -s user julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js
 ```
 
 **Codex:**
 ```bash
-codex mcp add julia-vscode-unofficial-mcp -- node ~/.julia-vscode/mcp-bridge.js
+codex mcp add julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js
 ```
 
 These commands can also be shown in VSCode by running "Julia MCP: Show Setup Command"

@@ -149,10 +149,10 @@ export async function activate(context: vscode.ExtensionContext) {
                     'Copy URL'
                 )
                 if (choice === 'Copy Claude Setup') {
-                    await vscode.env.clipboard.writeText(`claude mcp add -s user julia-vscode-unofficial-mcp -- ${BRIDGE_PATH}`)
+                    await vscode.env.clipboard.writeText('claude mcp add -s user julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js')
                     vscode.window.showInformationMessage('Claude setup command copied. Paste in a terminal (one-time setup).')
                 } else if (choice === 'Copy Codex Setup') {
-                    await vscode.env.clipboard.writeText(`codex mcp add julia-vscode-unofficial-mcp -- ${BRIDGE_PATH}`)
+                    await vscode.env.clipboard.writeText('codex mcp add julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js')
                     vscode.window.showInformationMessage('Codex setup command copied. Paste in a terminal (one-time setup).')
                 } else if (choice === 'Copy URL') {
                     await vscode.env.clipboard.writeText(url)
