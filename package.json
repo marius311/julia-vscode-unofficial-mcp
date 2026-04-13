@@ -1,0 +1,44 @@
+{
+    "name": "julia-vscode-unofficial-mcp",
+    "displayName": "Julia VSCode MCP (unofficial)",
+    "description": "Exposes Julia VS Code REPL tools to Claude Code, Codex, and other MCP clients",
+    "version": "0.1.0",
+    "publisher": "MariusMillea",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/marius311/julia-vscode-unofficial-mcp"
+    },
+    "engines": {
+        "vscode": "^1.108.0"
+    },
+    "extensionDependencies": [
+        "julialang.language-julia"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "julia-vscode-unofficial-mcp.showSetup",
+                "title": "Julia MCP: Show Setup Command"
+            }
+        ]
+    },
+    "scripts": {
+        "compile": "node esbuild.mjs",
+        "watch": "node esbuild.mjs --watch",
+        "check-types": "tsc --noEmit",
+        "package": "node esbuild.mjs --production",
+        "vsce-package": "npm run package && vsce package",
+        "code-install": "npm run vsce-package && code --install-extension julia-vscode-unofficial-mcp-0.1.0.vsix"
+    },
+    "devDependencies": {
+        "@types/node": "^25.6.0",
+        "@types/vscode": "1.108.0",
+        "esbuild": "^0.25.0",
+        "typescript": "^5.8.0"
+    }
+}
