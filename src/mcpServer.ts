@@ -5,15 +5,19 @@ const MCP_PROTOCOL_VERSION = '2025-03-26'
 const SERVER_NAME = 'julia-vscode-unofficial-mcp'
 const SERVER_VERSION = '0.1.0'
 
-const SERVER_INSTRUCTIONS = `You have access to a Julia REPL running in VS Code. Favor using the run-julia-code tool to run any Julia code, although there may be cases you should run the \`julia\` command via your bash tool instead (e.g. if given the context of the conversation it only makes sense to run a Julia script from the command line, etc...)
+const SERVER_INSTRUCTIONS = `You have access to a Julia REPL running in VS Code. Use the run-julia-code tool for nearly all Julia execution. Use the shell julia command only when a true command-line invocation is required, such as running a script as a process or reproducing CLI-specific behavior.
 
-The REPL session is persistent — variables, loaded packages, and function definitions carry across calls. You can build up state incrementally (e.g. load a package in one call, use it in the next).
+The REPL session is persistent. Variables, methods, loaded packages, and other state may already exist from earlier in the conversation or from the user's own work. Before assuming setup is needed, probe the session state when relevant.
 
-At the start of a conversation, the user may have already evaluated code in the REPL. Try to figure out from context if you need to evaluate setup code. If you are unsure, test if relevant variables are defined or which packages are loaded. 
+If you execute code that comes from a file, keep that file synchronized with the code you actually ran.
 
-If running code which originates from a file (e.g. from a test or "scratch" script), keep that file updated at the end of each of your responses.
+Standard output and standard error are not returned so you can't use print statements or expect to see debug outputs from user code. You will only receive the final result of the execution.
 
-If execution returns an error, read the stack trace and fix the issue. Use restart-julia-repl if the session gets into a bad state.`
+You can display plots to the user by evaluating any plotting backend's plot command (e.g. \`Plots.plot(...)\`) in the REPL. Only save plots to a file if the user asks. 
+
+If execution fails, use the returned error and stack trace to debug and retry.
+
+Use restart-julia-repl if the session gets into a bad state.`
 
 interface McpToolDef {
     name: string
