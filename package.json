@@ -2,7 +2,7 @@
     "name": "julia-vscode-unofficial-mcp",
     "displayName": "Julia VSCode MCP (unofficial)",
     "description": "Exposes Julia VS Code REPL tools to Claude Code, Codex, and other MCP clients",
-    "version": "0.1.2",
+    "version": "0.1.4",
     "publisher": "MariusMillea",
     "license": "MIT",
     "repository": {

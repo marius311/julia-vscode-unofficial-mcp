@@ -8,27 +8,42 @@ This extension is likely to be superceded by something more official in the Juli
 
 ## Important notes
 
-As of Apr 12, 2026, you need to be on the pre-release version of Julia for VS Code, which includes the necessary tool endpoints.
-
-If you're using Copilot Chat, you don't need this extension at all, that already works on that pre-release version. This is only for other agents/harnesses.
+You need Julia for VS Code version 1.209.2 or later, which includes the necessary tool endpoints.
 
 Currently, Julia for VS Code does _not_ report stdout/stderr from the REPL back to the agent, so the agent will only see the return value. 
 
+This may not currently work reliably with the Codex VS Code extension due to upstream MCP issues; see [openai/codex#6465](https://github.com/openai/codex/issues/6465) and [openai/codex#15508](https://github.com/openai/codex/issues/15508). It works fine with the Codex CLI. 
+
 ## Setup
 
-Install the extension, then run once in a terminal:
+Install the extension, then run the one-time command for your platform and agent from below in a terminal. 
 
-**Claude Code:**
-```bash
-claude mcp add -s user julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js
-```
+These commands can also be shown in VSCode by running "Julia MCP: Show Setup Command" — the platform-appropriate path is copied automatically.
 
-**Codex:**
-```bash
-codex mcp add julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js
-```
+### macOS / Linux
 
-These commands can also be shown in VSCode by running "Julia MCP: Show Setup Command"
+- **Claude Code:**
+  ```bash
+  claude mcp add -s user julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js
+  ```
+- **Codex:**
+  ```bash
+  codex mcp add julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js
+  ```
+
+### Windows
+
+(Windows is untested, feedback welcome!)
+
+- **Claude Code:**
+  ```
+  claude mcp add -s user julia-vscode-unofficial-mcp -- %USERPROFILE%\.julia-vscode\mcp-bridge.cmd
+  ```
+- **Codex:**
+  ```
+  codex mcp add julia-vscode-unofficial-mcp -- %USERPROFILE%\.julia-vscode\mcp-bridge.cmd
+  ```
+
 
 ## Usage
 

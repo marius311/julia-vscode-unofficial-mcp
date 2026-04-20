@@ -7,6 +7,8 @@ import { JuliaMcpServer } from './mcpServer'
 
 const MCP_DIR = path.join(os.homedir(), '.julia-vscode')
 const BRIDGE_PATH = path.join(MCP_DIR, 'mcp-bridge.js')
+const BRIDGE_CMD_PATH = path.join(MCP_DIR, 'mcp-bridge.cmd')
+const MIN_JULIA_EXTENSION_VERSION = '1.209.2'
 
 // Standalone Node.js script: reads MCP JSON-RPC from stdin, discovers the
 // Julia MCP server port from lock files, forwards to HTTP, writes to stdout.
@@ -113,6 +115,13 @@ export async function activate(context: vscode.ExtensionContext) {
         inputSchema: Record<string, unknown>
     }> = juliaExt.packageJSON?.contributes?.languageModelTools ?? []
 
+    if (lmTools.length === 0) {
+        const message = `For Julia MCP, you need at least version ${MIN_JULIA_EXTENSION_VERSION} of the julia-vscode extension.`
+        console.warn(`[julia-vscode-unofficial-mcp] ${message}`)
+        void vscode.window.showErrorMessage(message)
+        return
+    }
+
     const mcpTools = lmTools.map(t => ({
         name: t.name,
         description: t.modelDescription,
@@ -142,6 +151,9 @@ export async function activate(context: vscode.ExtensionContext) {
         // Command to show setup instructions
         context.subscriptions.push(
             vscode.commands.registerCommand('julia-vscode-unofficial-mcp.showSetup', async () => {
+                const bridgeRef = process.platform === 'win32'
+                    ? '%USERPROFILE%\\.julia-vscode\\mcp-bridge.cmd'
+                    : '~/.julia-vscode/mcp-bridge.js'
                 const choice = await vscode.window.showInformationMessage(
                     `Julia MCP Server: ${url}`,
                     'Copy Claude Setup',
@@ -149,10 +161,10 @@ export async function activate(context: vscode.ExtensionContext) {
                     'Copy URL'
                 )
                 if (choice === 'Copy Claude Setup') {
-                    await vscode.env.clipboard.writeText('claude mcp add -s user julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js')
+                    await vscode.env.clipboard.writeText(`claude mcp add -s user julia-vscode-unofficial-mcp -- ${bridgeRef}`)
                     vscode.window.showInformationMessage('Claude setup command copied. Paste in a terminal (one-time setup).')
                 } else if (choice === 'Copy Codex Setup') {
-                    await vscode.env.clipboard.writeText('codex mcp add julia-vscode-unofficial-mcp -- ~/.julia-vscode/mcp-bridge.js')
+                    await vscode.env.clipboard.writeText(`codex mcp add julia-vscode-unofficial-mcp -- ${bridgeRef}`)
                     vscode.window.showInformationMessage('Codex setup command copied. Paste in a terminal (one-time setup).')
                 } else if (choice === 'Copy URL') {
                     await vscode.env.clipboard.writeText(url)
@@ -168,8 +180,21 @@ export async function activate(context: vscode.ExtensionContext) {
 function installBridge() {
     try {
         fs.mkdirSync(MCP_DIR, { recursive: true })
-        const shebang = `#!${process.execPath}\n`
-        fs.writeFileSync(BRIDGE_PATH, shebang + BRIDGE_SCRIPT, { mode: 0o755 })
+        // sh/JS polyglot header: sh execs VSCode's Electron-as-Node with the path
+        // quoted (so spaces are safe), then Node strips the shebang and parses
+        // line 2 as `":"` (no-op string) followed by a `//` line comment.
+        const header =
+            `#!/bin/sh\n` +
+            `":" //# ; ELECTRON_RUN_AS_NODE=1 exec "${process.execPath}" "$0" "$@"\n`
+        fs.writeFileSync(BRIDGE_PATH, header + BRIDGE_SCRIPT, { mode: 0o755 })
+        if (process.platform === 'win32') {
+            const cmd =
+                `@echo off\r\n` +
+                `setlocal\r\n` +
+                `set "ELECTRON_RUN_AS_NODE=1"\r\n` +
+                `"${process.execPath}" "%~dp0mcp-bridge.js" %*\r\n`
+            fs.writeFileSync(BRIDGE_CMD_PATH, cmd)
+        }
     } catch (err) {
         console.warn('[julia-vscode-unofficial-mcp] Failed to install bridge script:', err)
     }
