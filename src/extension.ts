@@ -21,30 +21,34 @@ const os = require('os');
 
 const MCP_DIR = path.join(os.homedir(), '.julia-vscode');
 
-function findPort() {
+function findLock() {
     const cwd = process.cwd();
     let files;
     try { files = fs.readdirSync(MCP_DIR).filter(f => f.startsWith('mcp-') && f.endsWith('.lock')); }
     catch { return null; }
 
-    let bestPort = null, bestLen = 0;
+    let best = null, bestLen = 0;
     for (const file of files) {
         try {
             const data = JSON.parse(fs.readFileSync(path.join(MCP_DIR, file), 'utf-8'));
             if (data.workspace && cwd.startsWith(data.workspace) && data.workspace.length > bestLen) {
-                bestPort = data.port;
+                best = data;
                 bestLen = data.workspace.length;
             }
         } catch {}
     }
-    return bestPort;
+    return best;
 }
 
-function post(port, body) {
+function post(lock, body) {
     return new Promise((resolve, reject) => {
         const req = http.request({
-            hostname: '127.0.0.1', port, path: '/mcp', method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' }
+            hostname: '127.0.0.1', port: lock.port, path: '/mcp', method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/event-stream',
+                'Authorization': 'Bearer ' + lock.token
+            }
         }, res => {
             let data = '';
             res.on('data', chunk => data += chunk);
@@ -59,8 +63,8 @@ function post(port, body) {
 const rl = readline.createInterface({ input: process.stdin, terminal: false });
 
 rl.on('line', async (line) => {
-    const port = findPort();
-    if (!port) {
+    const lock = findLock();
+    if (!lock || !lock.port || !lock.token) {
         const parsed = JSON.parse(line);
         if (parsed.id != null) {
             process.stdout.write(JSON.stringify({
@@ -71,7 +75,7 @@ rl.on('line', async (line) => {
         return;
     }
     try {
-        const response = await post(port, line);
+        const response = await post(lock, line);
         if (response) { process.stdout.write(response + '\\n'); }
     } catch (err) {
         const parsed = JSON.parse(line);
@@ -135,9 +139,10 @@ export async function activate(context: vscode.ExtensionContext) {
         return
     }
 
-    // Start MCP server
+    // Start MCP server with a random per-session bearer token.
     try {
-        mcpServer = new JuliaMcpServer(juliaApi, mcpTools)
+        const token = crypto.randomBytes(32).toString('hex')
+        mcpServer = new JuliaMcpServer(juliaApi, mcpTools, token)
         await mcpServer.start()
         context.subscriptions.push(mcpServer)
 
@@ -207,9 +212,14 @@ function writeLockFile() {
     try {
         fs.writeFileSync(lockFile, JSON.stringify({
             port: mcpServer.getPort(),
+            token: mcpServer.getToken(),
             pid: process.pid,
             workspace
-        }) + '\n')
+        }) + '\n', { mode: 0o600 })
+        // writeFileSync only honors `mode` when creating the file; chmod to
+        // enforce perms on overwrite. No-op on Windows (OK: %USERPROFILE% ACLs
+        // are user-scoped by default).
+        try { fs.chmodSync(lockFile, 0o600) } catch {}
         console.log(`[julia-vscode-unofficial-mcp] Lock file: ${lockFile}`)
     } catch (err) {
         console.warn('[julia-vscode-unofficial-mcp] Failed to write lock file:', err)

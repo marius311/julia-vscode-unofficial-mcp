@@ -1,3 +1,4 @@
+import * as crypto from 'crypto'
 import * as http from 'http'
 import * as vscode from 'vscode'
 
@@ -53,15 +54,29 @@ function readBody(req: http.IncomingMessage): Promise<string> {
     })
 }
 
+function safeStrEqual(a: string, b: string): boolean {
+    const ab = Buffer.from(a)
+    const bb = Buffer.from(b)
+    if (ab.length !== bb.length) { return false }
+    return crypto.timingSafeEqual(ab, bb)
+}
+
+function rpcError(res: http.ServerResponse, status: number, code: number, message: string) {
+    res.writeHead(status, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code, message } }))
+}
+
 export class JuliaMcpServer implements vscode.Disposable {
     private server: http.Server | null = null
     private port = 0
     private tools: McpToolDef[]
     private juliaApi: { executeInREPL: Function }
+    private token: string
 
-    constructor(juliaApi: { executeInREPL: Function }, tools: McpToolDef[]) {
+    constructor(juliaApi: { executeInREPL: Function }, tools: McpToolDef[], token: string) {
         this.juliaApi = juliaApi
         this.tools = tools
+        this.token = token
     }
 
     private async handleToolCall(name: string, args: Record<string, unknown>): Promise<ToolResult> {
@@ -133,11 +148,25 @@ export class JuliaMcpServer implements vscode.Disposable {
 
     async start(): Promise<number> {
         this.server = http.createServer(async (req, res) => {
-            res.setHeader('Access-Control-Allow-Origin', '*')
-            res.setHeader('Access-Control-Allow-Methods', 'POST, GET, DELETE, OPTIONS')
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Mcp-Session-Id')
+            // Reject browser-originated requests outright: browsers always send
+            // Origin on cross-origin JSON POSTs; our CLI bridge never does.
+            if (req.headers.origin !== undefined) {
+                rpcError(res, 403, -32000, 'Origin header not allowed')
+                return
+            }
+            // Block DNS rebinding by requiring the Host header to name loopback.
+            const host = req.headers.host
+            if (host !== `127.0.0.1:${this.port}` && host !== `localhost:${this.port}`) {
+                rpcError(res, 403, -32000, 'Invalid Host header')
+                return
+            }
+            // Bearer token — shared secret via the lock file.
+            const auth = req.headers.authorization
+            if (!auth || !safeStrEqual(auth, `Bearer ${this.token}`)) {
+                rpcError(res, 401, -32001, 'Unauthorized')
+                return
+            }
 
-            if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return }
             if (req.method === 'GET' && req.url === '/mcp') { res.writeHead(405); res.end(); return }
             if (req.method === 'DELETE' && req.url === '/mcp') { res.writeHead(200); res.end(); return }
             if (req.method !== 'POST' || req.url !== '/mcp') { res.writeHead(404); res.end(); return }
@@ -189,6 +218,7 @@ export class JuliaMcpServer implements vscode.Disposable {
 
     getUrl(): string { return `http://127.0.0.1:${this.port}/mcp` }
     getPort(): number { return this.port }
+    getToken(): string { return this.token }
 
     dispose() {
         if (this.server) { this.server.close(); this.server = null }

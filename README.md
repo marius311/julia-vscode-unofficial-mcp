@@ -14,6 +14,8 @@ Currently, Julia for VS Code does _not_ report stdout/stderr from the REPL back 
 
 This may not currently work reliably with the Codex VS Code extension due to upstream MCP issues; see [openai/codex#6465](https://github.com/openai/codex/issues/6465) and [openai/codex#15508](https://github.com/openai/codex/issues/15508). It works fine with the Codex CLI. 
 
+This extension runs an HTTP server on a random localhost port to listen for requests. Session authentication is handled by lock files in `~/.julia-vscode/mcp-*.lock` which are only readable by your user, but an attacker who had gained only read access to those files could escalate to code execution in the REPL via this MCP.
+
 ## Setup
 
 Install the extension, then run the one-time command for your platform and agent from below in a terminal. 
@@ -53,4 +55,4 @@ The working directory of the agent needs to be the same as the VSCode workspace 
 
 ## How it works
 
-The extension reads tool definitions from the official Julia extension's `package.json` and exposes them via an HTTP MCP server on localhost. A stdio bridge script (`~/.julia-vscode/mcp-bridge.js`) translates between the MCP stdio protocol used by Claude/Codex and the HTTP server. Lock files keyed by workspace path handle multiple VS Code windows.
+The extension reads tool definitions from the official Julia extension's `package.json` and exposes them via an HTTP MCP server on localhost. A stdio bridge script (`~/.julia-vscode/mcp-bridge.js`) translates between the MCP stdio protocol used by Claude/Codex and the HTTP server. Lock files keyed by workspace path handle multiple VS Code windows, and also hold a per-session shared secret that the bridge must present on every request, so only processes that can read the lock file can talk to the REPL.
